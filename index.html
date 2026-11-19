@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Marrow Buddies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: a sticky top bar, then "My day" (log form) beside "The squad" (streak board), then one buddy's calendar + subjects, then today's feed. One pink world, single theme. */
+  --bg:#fff4f8;
+  --paper:#ffffff;
+  --ink:#4b2338;
+  --muted:#9b6a82;
+  --pink:#f2558f;
+  --pink-deep:#c92f6b;
+  --blush:#ffd9e7;
+  --line:#f7cddd;
+  --heat0:#fbe9f0;--heat1:#ffc6dc;--heat2:#ff98bf;--heat3:#f2558f;--heat4:#b8235e;
+  --display:"Fredoka","Baloo 2","Trebuchet MS",system-ui,sans-serif;
+  --body:"Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
+  --r:22px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background-color:var(--bg);
+  background-image:radial-gradient(var(--blush) 1.4px,transparent 1.6px);
+  background-size:26px 26px;
+  color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  min-height:100%;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--pink);outline-offset:2px;border-radius:10px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
+.num{font-variant-numeric:tabular-nums}
+
+/* top bar */
+.top{position:sticky;top:0;z-index:5;background:rgba(255,244,248,.92);backdrop-filter:blur(8px);border-bottom:2px dashed var(--line)}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo h1{font-size:26px;color:var(--pink-deep);letter-spacing:.2px}
+.logo small{display:block;font-family:var(--body);font-size:12.5px;color:var(--muted);font-weight:700;margin-top:-4px}
+.spacer{flex:1}
+.mebadge{display:flex;align-items:center;gap:8px;background:var(--paper);border:2px solid var(--line);border-radius:999px;padding:5px 12px 5px 6px;cursor:pointer}
+.mebadge:hover{border-color:var(--pink)}
+.ava{width:34px;height:34px;border-radius:50%;background:var(--blush);display:grid;place-items:center;font-size:19px;flex:none}
+.ava.lg{width:46px;height:46px;font-size:26px}
+
+main{max-width:1180px;margin:0 auto;padding:22px 20px 60px;display:grid;gap:22px;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+.full{grid-column:1/-1}
+@media (max-width:880px){main{grid-template-columns:1fr}}
+
+.card{background:var(--paper);border:2px solid var(--line);border-radius:var(--r);padding:20px;box-shadow:0 6px 0 var(--blush)}
+.card h2{font-size:21px;color:var(--pink-deep);display:flex;align-items:center;gap:8px}
+.card-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.sub{color:var(--muted);font-size:13.5px;font-weight:600}
+
+/* buttons & inputs */
+.btn{border:0;background:var(--pink);color:#fff;font-weight:800;border-radius:14px;padding:10px 16px;cursor:pointer;box-shadow:0 3px 0 var(--pink-deep);transition:transform .08s}
+.btn:hover{background:#ea4483}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--pink-deep)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:var(--paper);color:var(--pink-deep);border:2px solid var(--line);box-shadow:none}
+.btn.ghost:hover{border-color:var(--pink)}
+.btn.sm{white-space:nowrap;padding:6px 11px;font-size:13px;border-radius:11px}
+.iconbtn{border:0;background:none;cursor:pointer;color:var(--muted);font-size:17px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center}
+.iconbtn:hover{background:var(--blush);color:var(--pink-deep)}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+input[type=text],input[type=number],select,textarea{background:#fff9fb;border:2px solid var(--line);border-radius:13px;padding:9px 12px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--pink)}
+textarea{resize:vertical;min-height:62px}
+
+/* my day */
+.datenav{display:flex;align-items:center;gap:4px;margin-left:auto;background:var(--bg);border-radius:999px;padding:3px}
+.datenav span{font-weight:800;min-width:118px;text-align:center;font-size:14px}
+.dayhero{display:flex;gap:18px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.ring{position:relative;width:104px;height:104px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring .lbl{position:absolute;inset:0;display:grid;place-items:center;text-align:center;line-height:1.05}
+.ring .lbl b{font-family:var(--display);font-size:30px;color:var(--pink-deep)}
+.ring .lbl small{display:block;font-size:11.5px;color:var(--muted);font-weight:800}
+.ring.pop{animation:pop .6s ease}
+@keyframes pop{40%{transform:scale(1.12)}}
+.streakbig{display:flex;flex-direction:column;gap:2px}
+.streakbig .n{font-family:var(--display);font-size:38px;line-height:1;color:var(--ink)}
+.streakbig .n em{font-style:normal;font-size:16px;color:var(--muted);font-family:var(--body);font-weight:700;margin-left:4px}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:12.5px;font-weight:800;background:var(--blush);color:var(--pink-deep)}
+.pill.warn{background:#fff0d6;color:#a35a00}
+.pill.ok{background:#ffe1ee;color:var(--pink-deep)}
+
+.addform{display:grid;grid-template-columns:1.1fr 1.6fr .6fr auto;gap:10px;align-items:end;background:var(--bg);padding:12px;border-radius:18px;border:2px dashed var(--line)}
+@media (max-width:620px){.addform{grid-template-columns:1fr 1fr}.addform .f-title{grid-column:1/-1;order:-1}.addform .btn{grid-column:1/-1}}
+.vlist{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.vlist li{display:flex;align-items:center;gap:10px;padding:9px 10px 9px 12px;border-radius:14px;background:#fff9fb;border:1.5px solid var(--line)}
+.vlist .t{flex:1;min-width:0;overflow-wrap:anywhere;font-weight:700}
+.vlist .m{color:var(--muted);font-size:13px;font-weight:700;white-space:nowrap}
+.subj{font-size:11.5px;font-weight:800;border-radius:8px;padding:2px 8px;background:var(--blush);color:var(--pink-deep);white-space:nowrap}
+.empty{color:var(--muted);font-size:14px;padding:12px;text-align:center;border-radius:14px;background:#fff9fb;border:1.5px dashed var(--line)}
+
+.section-label{font-family:var(--display);font-size:16px;color:var(--ink);margin:18px 0 8px;display:flex;align-items:center;gap:8px}
+.tasks{display:flex;flex-direction:column;gap:6px}
+.task{display:flex;align-items:center;gap:10px;padding:6px 6px 6px 4px;border-radius:12px}
+.task:hover{background:#fff9fb}
+.task input{appearance:none;width:24px;height:24px;border:2px solid var(--pink);border-radius:8px;display:grid;place-items:center;cursor:pointer;flex:none;background:#fff}
+.task input:checked{background:var(--pink)}
+.task input:checked::after{content:"♥";color:#fff;font-size:13px;line-height:1}
+.task label{flex:1;cursor:pointer;font-weight:700}
+.task.done label{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--pink)}
+.task .x{opacity:0}
+.task:hover .x,.task .x:focus-visible{opacity:1}
+.addtask{display:flex;gap:8px;margin-top:8px}
+
+/* squad */
+.squad{display:flex;flex-direction:column;gap:10px}
+.mrow{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:18px;border:2px solid transparent;background:#fff9fb;cursor:pointer;text-align:left;width:100%}
+.mrow:hover{border-color:var(--line)}
+.mrow.sel{border-color:var(--pink);background:#fff}
+.mrow .name{font-weight:800;overflow-wrap:anywhere}
+.mrow .meta{font-size:12.5px;color:var(--muted);font-weight:700}
+.dots{display:flex;gap:4px;margin-top:5px}
+.dot{width:13px;height:13px;border-radius:5px;background:var(--heat0);border:1.5px solid var(--line)}
+.dot.on{background:var(--pink);border-color:var(--pink)}
+.dot.today{outline:2px solid var(--pink-deep);outline-offset:1px}
+.fire{text-align:right;line-height:1.05}
+.fire b{font-family:var(--display);font-size:26px;display:block}
+.fire small{font-size:11.5px;color:var(--muted);font-weight:800}
+.fire.cold b{color:#d6b3c3}
+.rank{font-family:var(--display);color:var(--muted);font-size:13px}
+
+/* buddy detail */
+.detail{display:grid;grid-template-columns:auto minmax(0,1fr);gap:26px;align-items:start}
+@media (max-width:880px){.detail{grid-template-columns:1fr}}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+@media (max-width:520px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--bg);border-radius:16px;padding:10px 12px}
+.stat b{font-family:var(--display);font-size:24px;display:block;line-height:1.1}
+.stat span{font-size:12px;color:var(--muted);font-weight:800}
+.heatwrap{overflow-x:auto;padding-bottom:4px}
+.heat{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,14px);gap:4px}
+.heat i{width:14px;height:14px;border-radius:4px;background:var(--heat0)}
+.heat i.l1{background:var(--heat1)}.heat i.l2{background:var(--heat2)}.heat i.l3{background:var(--heat3)}.heat i.l4{background:var(--heat4)}
+.heat i.fut{background:transparent}
+.heat i.td{outline:2px solid var(--ink);outline-offset:1px}
+.months{display:grid;grid-auto-flow:column;grid-auto-columns:14px;gap:4px;font-size:11px;color:var(--muted);font-weight:800;height:16px;margin-bottom:4px}
+.months span{white-space:nowrap}
+.legend{display:flex;gap:4px;align-items:center;font-size:11.5px;color:var(--muted);font-weight:700;margin-top:8px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.subjgrid{display:flex;flex-wrap:wrap;gap:6px}
+.sc{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:800;padding:5px 10px;border-radius:999px;border:1.5px solid var(--line);color:#c8a3b4;background:#fff}
+.sc b{font-family:var(--display);font-weight:600}
+.sc.on{color:var(--ink);background:var(--blush);border-color:var(--blush)}
+.sc.on b{color:var(--pink-deep)}
+
+/* leaderboard extras */
+.tabs{display:flex;gap:4px;background:var(--bg);border-radius:999px;padding:4px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{flex:1;border:0;background:none;border-radius:999px;padding:7px 10px;font-weight:800;font-size:13px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected=true]{background:var(--paper);color:var(--pink-deep);box-shadow:0 2px 0 var(--line)}
+.squadstreak{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#ffe3ee,#fff);border:2px solid var(--line);border-radius:18px;padding:10px 14px;margin-bottom:12px}
+.squadstreak b{font-family:var(--display);font-size:30px;color:var(--pink-deep);line-height:1}
+.squadstreak .txt{font-size:13px;font-weight:700;color:var(--muted)}
+.squadstreak .txt strong{color:var(--ink);display:block;font-size:14.5px}
+.medal{font-size:18px}
+.mrow.p1{background:linear-gradient(90deg,#ffe0ec,#fff9fb)}
+
+/* month calendar */
+.calwrap{width:min(100%,360px)}
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.calhead h3{font-size:18px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .wd{font-size:11px;font-weight:800;color:var(--muted);text-align:center;padding-bottom:2px}
+.cal button{aspect-ratio:1;border:1.5px solid var(--line);background:#fff;border-radius:12px;cursor:pointer;font-weight:800;font-size:13px;color:var(--ink);position:relative;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.cal button small{font-size:10px;font-weight:800;opacity:.85}
+.cal button.l1{background:var(--heat1);border-color:var(--heat1)}
+.cal button.l2{background:var(--heat2);border-color:var(--heat2);color:#fff}
+.cal button.l3{background:var(--heat3);border-color:var(--heat3);color:#fff}
+.cal button.l4{background:var(--heat4);border-color:var(--heat4);color:#fff}
+.cal button.goal::after{content:"♥";position:absolute;top:1px;right:4px;font-size:10px;color:#fff}
+.cal button.l1.goal::after{color:var(--pink-deep)}
+.cal button.td{outline:2.5px solid var(--ink);outline-offset:1px}
+.cal button.sel{box-shadow:0 0 0 3px var(--paper),0 0 0 5px var(--pink)}
+.cal button:disabled{opacity:.35;cursor:default}
+.cal .pad{visibility:hidden}
+
+/* feed */
+.feed{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.feed li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;background:#fff9fb;border-radius:16px;border:1.5px solid var(--line)}
+.feed .who{font-weight:800;font-size:13px}
+.feed .what{font-weight:700;overflow-wrap:anywhere}
+.feed .when{font-size:12px;color:var(--muted);font-weight:700}
+
+/* banners, modal, toast */
+.banner{grid-column:1/-1;background:#fff;border:2px dashed var(--pink);border-radius:var(--r);padding:14px 18px;font-weight:700;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.hidden{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(75,35,56,.35);display:grid;place-items:center;z-index:20;padding:16px}
+.modal .card{width:min(440px,100%);box-shadow:0 10px 0 var(--blush)}
+.emojis{display:flex;flex-wrap:wrap;gap:6px}
+.emojis button{width:42px;height:42px;font-size:22px;border-radius:13px;border:2px solid var(--line);background:#fff;cursor:pointer}
+.emojis button[aria-pressed=true]{border-color:var(--pink);background:var(--blush)}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:14px;font-weight:700;z-index:30;max-width:calc(100% - 32px)}
+.hearts{position:fixed;pointer-events:none;z-index:40;font-size:22px;animation:float 1.2s ease-out forwards}
+@keyframes float{to{transform:translateY(-110px) scale(1.3);opacity:0}}
+@media (prefers-reduced-motion:reduce){.ring.pop,.hearts{animation:none}.hearts{display:none}}
+footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:13px;font-weight:600}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="top-in">
+    <div class="logo">
+      <svg width="40" height="40" viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="12" fill="#f2558f"/><path d="M20 30s-9-5.6-9-11.6A4.9 4.9 0 0 1 20 15.6a4.9 4.9 0 0 1 9 2.8C29 24.4 20 30 20 30z" fill="#fff"/><path d="M16 21h2.4l1.2-2.6 1.8 5 1.3-2.4H25" stroke="#f2558f" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div><h1>Marrow Buddies</h1><small>daily Marrow PG video streaks, together</small></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="mebadge hidden" id="meBadge" type="button" aria-label="Edit my profile"></button>
+    <button class="btn ghost sm hidden" id="signOutBtn" type="button">Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner hidden" id="banner"></div>
+
+  <!-- MY DAY -->
+  <section class="card" id="myDay" aria-labelledby="myDayH">
+    <div class="card-head">
+      <h2 id="myDayH">My day</h2>
+      <div class="datenav">
+        <button class="iconbtn" id="prevDay" type="button" aria-label="Previous day">‹</button>
+        <span id="dateLabel">Today</span>
+        <button class="iconbtn" id="nextDay" type="button" aria-label="Next day">›</button>
+      </div>
+    </div>
+
+    <div id="joinBox" class="hidden">
+      <p style="margin:0 0 12px;font-weight:700" id="joinText">Sign in to log your Marrow videos and build a streak with your squad.</p>
+      <button class="btn" id="signInBtn" type="button">Sign in with Google</button>
+      <button class="btn hidden" id="joinBtn" type="button">Join the squad 🎀</button>
+    </div>
+
+    <div id="dayBox">
+      <div class="dayhero">
+        <div class="ring" id="ring">
+          <svg width="104" height="104" viewBox="0 0 104 104" aria-hidden="true">
+            <circle cx="52" cy="52" r="44" fill="none" stroke="#fbe9f0" stroke-width="12"/>
+            <circle id="ringArc" cx="52" cy="52" r="44" fill="none" stroke="#f2558f" stroke-width="12" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="276.5" style="transition:stroke-dashoffset .5s"/>
+          </svg>
+          <div class="lbl"><div><b class="num" id="ringN">0</b><small id="ringGoal">of 3 videos</small></div></div>
+        </div>
+        <div class="streakbig">
+          <span class="sub">Current streak</span>
+          <div class="n num" id="myStreak">0<em>days</em></div>
+          <div id="streakPill"></div>
+        </div>
+      </div>
+
+      <form class="addform" id="addForm" autocomplete="off">
+        <div class="field"><label for="fSubject">Subject</label><select id="fSubject"></select></div>
+        <div class="field f-title"><label for="fTitle">Video</label><input type="text" id="fTitle" maxlength="120" placeholder="e.g. Brachial plexus" required></div>
+        <div class="field"><label for="fMin">Minutes</label><input type="number" id="fMin" min="0" max="600" placeholder="45"></div>
+        <button class="btn" type="submit" id="addBtn">Add ♥</button>
+      </form>
+      <ul class="vlist" id="vlist"></ul>
+
+      <div class="section-label">Squad tasks</div>
+      <div class="tasks" id="tasks"></div>
+      <form class="addtask" id="taskForm" autocomplete="off">
+        <input type="text" id="taskInput" maxlength="80" placeholder="Add a task for everyone, e.g. 50 Qbank MCQs" aria-label="New squad task">
+        <button class="btn ghost sm" type="submit">Add task</button>
+      </form>
+
+      <div class="section-label"><label for="note" style="cursor:pointer">Note to self</label></div>
+      <textarea id="note" maxlength="600" placeholder="High-yield points, what to revise tomorrow…"></textarea>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section class="card" aria-labelledby="squadH">
+    <div class="card-head">
+      <h2 id="squadH">Leaderboard</h2>
+      <span class="sub" id="squadSub"></span>
+    </div>
+    <div class="squadstreak" id="squadStreak"></div>
+    <div class="tabs" role="tablist" aria-label="Rank by">
+      <button type="button" role="tab" data-rank="streak" aria-selected="true">🔥 Streak</button>
+      <button type="button" role="tab" data-rank="week" aria-selected="false">This week</button>
+      <button type="button" role="tab" data-rank="month" aria-selected="false">This month</button>
+      <button type="button" role="tab" data-rank="all" aria-selected="false">All time</button>
+    </div>
+    <div class="squad" id="squad"><div class="empty">Loading the squad…</div></div>
+  </section>
+
+  <!-- DETAIL -->
+  <section class="card full" aria-labelledby="detailH">
+    <div class="card-head">
+      <div class="ava lg" id="dAva">🌸</div>
+      <div><h2 id="detailH">Progress</h2><div class="sub" id="dSub">Tap a buddy to see their calendar</div></div>
+    </div>
+    <div class="stats" id="dStats"></div>
+    <div class="detail" style="margin-bottom:22px">
+      <div class="calwrap">
+        <div class="calhead">
+          <button class="iconbtn" id="calPrev" type="button" aria-label="Previous month">‹</button>
+          <h3 id="calTitle">Month</h3>
+          <button class="iconbtn" id="calNext" type="button" aria-label="Next month">›</button>
+        </div>
+        <div class="cal" id="cal"></div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-top:0" id="dayTitle">Day</div>
+        <ul class="vlist" id="dayList" style="margin-top:0"></ul>
+      </div>
+    </div>
+    <div class="detail">
+      <div>
+        <div class="section-label" style="margin-top:0">Last 18 weeks</div>
+        <div class="heatwrap"><div class="months" id="months"></div><div class="heat" id="heat"></div></div>
+        <div class="legend">Less <i style="background:var(--heat0)"></i><i style="background:var(--heat1)"></i><i style="background:var(--heat2)"></i><i style="background:var(--heat3)"></i><i style="background:var(--heat4)"></i> More videos</div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-top:0"><span id="subjCount">Subjects</span></div>
+        <div class="subjgrid" id="subjGrid"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEED -->
+  <section class="card full" aria-labelledby="feedH">
+    <div class="card-head"><h2 id="feedH">Today in the squad</h2><span class="sub" id="feedSub"></span></div>
+    <ul class="feed" id="feed"></ul>
+  </section>
+</main>
+<footer>A day counts toward your streak when you log at least one video. Everyone in the squad sees everyone's logs; only you can change yours.</footer>
+
+<div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalH">
+  <form class="card" id="profileForm" autocomplete="off">
+    <h2 id="modalH" style="margin-bottom:14px">Your buddy card</h2>
+    <div class="field" style="margin-bottom:12px"><label>Pick your mascot</label><div class="emojis" id="emojiPick"></div></div>
+    <div class="field" style="margin-bottom:12px"><label for="pNick">Nickname (optional)</label><input type="text" id="pNick" maxlength="30" placeholder="Shown instead of your Google name"></div>
+    <div class="field" style="margin-bottom:12px" id="codeField"><label for="pCode">Squad code</label><input type="text" id="pCode" maxlength="40" placeholder="Ask whoever set up the tracker"></div>
+    <div class="field" style="margin-bottom:18px"><label for="pGoal">Daily goal (videos)</label><input type="number" id="pGoal" min="1" max="30" value="3"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn ghost" type="button" id="pCancel">Cancel</button>
+      <button class="btn" type="submit" id="pSave">Save</button>
+    </div>
+  </form>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+/* ===== 1. Paste your Firebase web config here (Firebase console → Project settings → Your apps → Web app) ===== */
+const FIREBASE_CONFIG={
+  apiKey:"PASTE_API_KEY",
+  authDomain:"PASTE_PROJECT_ID.firebaseapp.com",
+  projectId:"PASTE_PROJECT_ID",
+  storageBucket:"PASTE_PROJECT_ID.appspot.com",
+  messagingSenderId:"PASTE_SENDER_ID",
+  appId:"PASTE_APP_ID"
+};
+/* ===== 2. The squad code itself lives ONLY in firestore.rules, never in this file. ===== */
+const SUBJECTS=["Anatomy","Physiology","Biochemistry","Pathology","Pharmacology","Microbiology","Forensic Medicine","PSM","Medicine","Surgery","OBGYN","Pediatrics","Orthopedics","ENT","Ophthalmology","Dermatology","Psychiatry","Anesthesia","Radiology"];
+const EMOJIS=["🌸","🩷","🐰","🍓","🧸","🦄","🌷","🐱","🍰","🎀","🐣","🍑","🦩","🐼","🌙","💖"];
+const $=id=>document.getElementById(id);
+
+/* ---------- dates (viewer's local time) ---------- */
+const pad=n=>String(n).padStart(2,"0");
+const ymd=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parse=k=>{const[a,b,c]=k.split("-").map(Number);return new Date(a,b-1,c)};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+const today=()=>ymd(new Date());
+function dateLabel(k){
+  if(k===today())return "Today";
+  if(k===ymd(addDays(new Date(),-1)))return "Yesterday";
+  return parse(k).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+}
+
+/* ---------- state ---------- */
+let db=null,auth=null,me=null,writeBlocked=false;const configured=!String(FIREBASE_CONFIG.apiKey).startsWith("PASTE");
+const S={members:new Map(),logs:new Map(),tasks:[],date:today(),view:null,loaded:false,names:{}};
+const logSubs=new Map();
+
+function h(tag,attrs,...kids){
+  const el=document.createElement(tag);
+  for(const[k,v]of Object.entries(attrs||{})){
+    if(v==null||v===false)continue;
+    if(k==="class")el.className=v;
+    else if(k.startsWith("on"))el.addEventListener(k.slice(2),v);
+    else if(k==="text")el.textContent=v;
+    else el.setAttribute(k,v===true?"":v);
+  }
+  for(const c of kids.flat()){if(c==null||c===false)continue;el.append(c.nodeType?c:document.createTextNode(String(c)))}
+  return el;
+}
+function toast(msg){
+  const t=h("div",{class:"toast",role:"status",text:msg});document.body.append(t);setTimeout(()=>t.remove(),3800);
+}
+function hearts(x,y){
+  for(let i=0;i<6;i++){
+    const e=h("span",{class:"hearts",text:["💗","🩷","💖"][i%3]});
+    e.style.left=(x+(Math.random()*80-40))+"px";e.style.top=(y+(Math.random()*20))+"px";
+    e.style.animationDelay=(i*60)+"ms";document.body.append(e);setTimeout(()=>e.remove(),1600);
+  }
+}
+
+/* ---------- derived data ---------- */
+const dayOf=(uid,k)=>S.logs.get(uid)?.get(k);
+const vids=d=>(d&&Array.isArray(d.videos))?d.videos:[];
+function doneSet(uid){const s=new Set();S.logs.get(uid)?.forEach((v,k)=>{if(vids(v).length)s.add(k)});return s}
+function curStreak(set){let d=new Date();if(!set.has(ymd(d)))d=addDays(d,-1);let n=0;while(set.has(ymd(d))){n++;d=addDays(d,-1)}return n}
+function bestStreak(set){let b=0,c=0,prev=null;for(const k of[...set].sort()){c=(prev&&ymd(addDays(parse(prev),1))===k)?c+1:1;b=Math.max(b,c);prev=k}return b}
+function memberName(uid){
+  const m=S.members.get(uid)||{};
+  const nick=typeof m.nick==="string"?m.nick.trim():"";
+  return nick||(typeof m.name==="string"&&m.name.trim())||"Someone";
+}
+const memberEmoji=uid=>{const e=S.members.get(uid)?.emoji;return EMOJIS.includes(e)?e:"🌸"};
+const memberGoal=uid=>{const g=Number(S.members.get(uid)?.goal);return g>=1&&g<=30?Math.round(g):3};
+function summary(uid){
+  const set=doneSet(uid);let total=0,mins=0;const bySubj={};
+  S.logs.get(uid)?.forEach(d=>{for(const v of vids(d)){total++;mins+=Number(v.m)||0;const s=SUBJECTS.includes(v.s)?v.s:"Other";bySubj[s]=(bySubj[s]||0)+1}});
+  const now=new Date();const wk=ymd(addDays(now,-((now.getDay()+6)%7)));const mo=ymd(new Date(now.getFullYear(),now.getMonth(),1));
+  let week=0,month=0;S.logs.get(uid)?.forEach((d,k)=>{const n=vids(d).length;if(k>=wk)week+=n;if(k>=mo)month+=n});
+  return{set,cur:curStreak(set),best:bestStreak(set),total,mins,bySubj,days:set.size,today:vids(dayOf(uid,today())).length,week,month};
+}
+/* squad streak: consecutive days on which every member who had joined by then logged a video */
+function squadStreak(){
+  const ids=[...S.members.keys()];if(!ids.length)return{n:0,todayDone:false,left:0};
+  const sets=new Map(ids.map(id=>[id,doneSet(id)]));
+  const joinedBy=(id,d)=>{const j=Number(S.members.get(id)?.joinedAt);return !j||j<addDays(parse(ymd(d)),1).getTime()};
+  const allDone=d=>{const k=ymd(d);const act=ids.filter(id=>joinedBy(id,d));return act.length>0&&act.every(id=>sets.get(id).has(k))};
+  const t=new Date();const todayDone=allDone(t);
+  let d=todayDone?t:addDays(t,-1);let n=0;
+  while(n<1000&&allDone(d)){n++;d=addDays(d,-1)}
+  const left=ids.filter(id=>!sets.get(id).has(today())).length;
+  return{n,todayDone,left};
+}
+
+/* ---------- writes ---------- */
+let wq=Promise.resolve();
+function handleWriteError(e){
+  const code=e&&e.code;
+  if(code==="permission-denied")toast("That wasn't allowed. Check your squad code, or sign in again.");
+  else if(code==="resource-exhausted")toast("The free daily limit is used up. Try again tomorrow.");
+  else toast("Couldn't save just now. Check your connection and try again.");
+}
+function write(fn){wq=wq.then(fn).catch(handleWriteError);return wq}
+function saveMyDay(k,body){
+  if(!db||!me)return;
+  const doc={date:k,videos:body.videos||[],tasks:body.tasks||{},note:body.note||"",updatedAt:Date.now()};
+  if(!S.logs.has(me))S.logs.set(me,new Map());
+  S.logs.get(me).set(k,doc);renderAll();
+  write(()=>db.doc("logs/"+me+"/days/"+k).set(doc));
+}
+const myDay=k=>{const d=dayOf(me,k)||{};return{videos:[...vids(d)],tasks:{...(d.tasks||{})},note:typeof d.note==="string"?d.note:""}};
+
+/* ---------- render: my day ---------- */
+function renderMyDay(){
+  const joined=me&&S.members.has(me);
+  const showJoin=S.authReady&&!joined;
+  $("joinBox").classList.toggle("hidden",!showJoin);
+  $("dayBox").classList.toggle("hidden",showJoin||!S.authReady);
+  $("signInBtn").classList.toggle("hidden",!!me);$("joinBtn").classList.toggle("hidden",!me);
+  $("joinText").textContent=me?"You're signed in. Join the squad with your squad code to start logging videos.":"Sign in to log your Marrow videos and build a streak with your squad.";
+  $("dateLabel").textContent=dateLabel(S.date);
+  $("nextDay").disabled=S.date>=today();
+  const ro=!db||!me||writeBlocked||!joined;
+  for(const id of["fSubject","fTitle","fMin","addBtn","note","taskInput"])$(id).disabled=ro;
+
+  const d=myDay(S.date);const n=d.videos.length;const goal=me?memberGoal(me):3;
+  $("ringN").textContent=n;$("ringGoal").textContent="of "+goal+" video"+(goal===1?"":"s");
+  $("ringArc").style.strokeDashoffset=String(276.5*(1-Math.min(1,n/goal)));
+
+  const sm=me?summary(me):{cur:0,set:new Set()};
+  $("myStreak").replaceChildren(String(sm.cur),h("em",{text:sm.cur===1?"day":"days"}));
+  const pill=$("streakPill");pill.replaceChildren();
+  if(sm.set.has(today()))pill.append(h("span",{class:"pill ok",text:"🔥 Today counted"}));
+  else if(sm.cur>0)pill.append(h("span",{class:"pill warn",text:"Log a video today to keep it alive"}));
+  else pill.append(h("span",{class:"pill",text:"Log one video to start a streak"}));
+
+  const ul=$("vlist");ul.replaceChildren();
+  if(!n)ul.append(h("li",{class:"empty",style:"display:block",text:S.date===today()?"No videos logged yet today. Your first one starts the day's streak 💗":"Nothing logged for this day."}));
+  d.videos.forEach((v,i)=>ul.append(h("li",{},
+    h("span",{class:"subj",text:SUBJECTS.includes(v.s)?v.s:"Other"}),
+    h("span",{class:"t",text:String(v.t||"Untitled video")}),
+    Number(v.m)>0?h("span",{class:"m num",text:Math.round(v.m)+" min"}):null,
+    ro?null:h("button",{class:"iconbtn",type:"button","aria-label":"Remove "+(v.t||"video"),text:"×",onclick:()=>{const x=myDay(S.date);x.videos.splice(i,1);saveMyDay(S.date,x)}})
+  )));
+
+  const tw=$("tasks");tw.replaceChildren();
+  if(!S.tasks.length)tw.append(h("div",{class:"empty",text:"No squad tasks yet. Add one everyone should do daily."}));
+  for(const t of S.tasks){
+    const cid="tk_"+t.id;const on=!!d.tasks[t.id];
+    const canDel=!ro&&t.by===me;
+    tw.append(h("div",{class:"task"+(on?" done":"")},
+      h("input",{type:"checkbox",id:cid,checked:on,disabled:ro,onchange:e=>{const x=myDay(S.date);if(e.target.checked)x.tasks[t.id]=true;else delete x.tasks[t.id];saveMyDay(S.date,x)}}),
+      h("label",{for:cid,text:String(t.title||"Task")}),
+      canDel?h("button",{class:"iconbtn x",type:"button","aria-label":"Delete task "+t.title,text:"×",onclick:()=>write(()=>db.doc("tasks/"+t.id).delete())}):null
+    ));
+  }
+  const note=$("note");if(document.activeElement!==note)note.value=d.note;
+}
+
+/* ---------- render: squad ---------- */
+function renderSquad(){
+  const box=$("squad");
+  if(!me||!S.members.has(me)){$("squadSub").textContent="";$("squadStreak").replaceChildren();box.replaceChildren(h("div",{class:"empty",text:me?"Join the squad to see the leaderboard.":"Sign in to see the leaderboard."}));return}
+  if(!S.loaded){box.replaceChildren(h("div",{class:"empty",text:S.slow?"Still reaching the squad's data… it may be offline for a moment.":"Loading the squad…"}));return}
+  const ids=[...S.members.keys()];
+  if(!ids.length){box.replaceChildren(h("div",{class:"empty",text:"Nobody has joined yet. Be the first! 🎀"}));$("squadSub").textContent="";return}
+  const RANK={streak:{key:"cur",unit:"day streak"},week:{key:"week",unit:"videos this week"},month:{key:"month",unit:"videos this month"},all:{key:"total",unit:"videos all time"}};
+  const R=RANK[S.rank]||RANK.streak;
+  const rows=ids.map(id=>({id,...summary(id)})).sort((a,b)=>b[R.key]-a[R.key]||b.cur-a.cur||b.today-a.today||b.total-a.total);
+  const doneToday=rows.filter(r=>r.today>0).length;
+  $("squadSub").textContent=doneToday+" of "+rows.length+" logged today";
+  const sq=squadStreak();
+  $("squadStreak").replaceChildren(
+    h("b",{class:"num",text:(sq.n?"🔥":"")+sq.n}),
+    h("div",{class:"txt"},h("strong",{text:"Squad streak · "+sq.n+" day"+(sq.n===1?"":"s")}),
+      sq.todayDone?"Everyone logged today. Beautiful 💗":sq.left+" buddy"+(sq.left===1?"":"s")+" still to log today"+(sq.n?" to keep it going":" to start one")));
+  const medals=["🥇","🥈","🥉"];let place=0,prevVal=null;
+  box.replaceChildren(...rows.map((r,i)=>{
+    if(r[R.key]!==prevVal){place=i;prevVal=r[R.key]}
+    const val=r[R.key];
+    const dots=[];for(let k=6;k>=0;k--){const key=ymd(addDays(new Date(),-k));dots.push(h("span",{class:"dot"+(r.set.has(key)?" on":"")+(k===0?" today":""),title:dateLabel(key)}))}
+    return h("button",{class:"mrow"+(S.view===r.id?" sel":"")+(place===0&&val>0?" p1":""),type:"button",onclick:()=>{S.view=r.id;S.calDay=null;renderSquad();renderDetail()}},
+      h("div",{class:"ava",text:memberEmoji(r.id)}),
+      h("div",{},
+        h("div",{class:"name"},val>0&&place<3?h("span",{class:"medal",text:medals[place]+" "}):h("span",{class:"rank",text:"#"+(place+1)+" "}),memberName(r.id),r.id===me?h("span",{class:"sub",text:" (you)"}):null),
+        h("div",{class:"meta num",text:"Today "+r.today+"/"+memberGoal(r.id)+" · 🔥 "+r.cur+" · best "+r.best}),
+        h("div",{class:"dots","aria-label":"Last 7 days"},dots)),
+      h("div",{class:"fire num"+(val?"":" cold")},h("b",{text:(S.rank==="streak"&&val?"🔥":"")+val}),h("small",{text:R.unit}))
+    );
+  }));
+}
+
+/* ---------- render: detail ---------- */
+function renderDetail(){
+  const uid=S.view&&S.members.has(S.view)?S.view:(me&&S.members.has(me)?me:[...S.members.keys()][0]);
+  if(!uid){$("dStats").replaceChildren();$("heat").replaceChildren();$("months").replaceChildren();$("subjGrid").replaceChildren();return}
+  const s=summary(uid);
+  $("dAva").textContent=memberEmoji(uid);
+  $("detailH").textContent=uid===me?"My progress":memberName(uid)+"'s progress";
+  $("dSub").textContent="Daily goal "+memberGoal(uid)+" videos · "+s.days+" active days";
+  const hrs=s.mins/60;
+  $("dStats").replaceChildren(
+    ...[[s.cur,"current streak"],[s.best,"best streak"],[s.total,"videos watched"],[hrs>=10?Math.round(hrs):hrs.toFixed(1),"hours logged"]]
+    .map(([v,l])=>h("div",{class:"stat"},h("b",{class:"num",text:String(v)}),h("span",{text:l}))));
+
+  renderCal(uid);
+  const now=new Date();const weeks=18;
+  const start=addDays(now,-((weeks-1)*7+now.getDay()));
+  const heat=$("heat");heat.replaceChildren();const months=$("months");months.replaceChildren();
+  let lastMonth=-1;
+  for(let w=0;w<weeks;w++){
+    const colStart=addDays(start,w*7);
+    const m=colStart.getMonth();
+    months.append(h("span",{text:m!==lastMonth&&colStart.getDate()<=7||w===0?colStart.toLocaleDateString(undefined,{month:"short"}):""}));
+    if(m!==lastMonth&&(colStart.getDate()<=7||w===0))lastMonth=m;
+    for(let d=0;d<7;d++){
+      const day=addDays(colStart,d);const k=ymd(day);
+      if(day>now){heat.append(h("i",{class:"fut"}));continue}
+      const n=vids(dayOf(uid,k)).length;
+      const lvl=n===0?0:n===1?1:n<=3?2:n<=5?3:4;
+      heat.append(h("i",{class:(lvl?"l"+lvl:"")+(k===today()?" td":""),title:dateLabel(k)+": "+n+" video"+(n===1?"":"s")}));
+    }
+  }
+  const touched=SUBJECTS.filter(x=>s.bySubj[x]).length;
+  $("subjCount").textContent="Subjects covered "+touched+"/"+SUBJECTS.length;
+  $("subjGrid").replaceChildren(...SUBJECTS.map(x=>h("span",{class:"sc"+(s.bySubj[x]?" on":"")},x,h("b",{class:"num",text:String(s.bySubj[x]||0)}))));
+}
+
+/* ---------- render: month calendar ---------- */
+function renderCal(uid){
+  const now=new Date();
+  if(!S.calMonth)S.calMonth=new Date(now.getFullYear(),now.getMonth(),1);
+  const m0=S.calMonth;const y=m0.getFullYear(),mo=m0.getMonth();
+  $("calTitle").textContent=m0.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  $("calNext").disabled=y===now.getFullYear()&&mo===now.getMonth();
+  const goal=memberGoal(uid);const cal=$("cal");
+  const cells=["M","T","W","T","F","S","S"].map(w=>h("div",{class:"wd",text:w}));
+  const lead=(m0.getDay()+6)%7;for(let i=0;i<lead;i++)cells.push(h("div",{class:"pad"}));
+  const dim=new Date(y,mo+1,0).getDate();let active=0,sum=0;
+  if(!S.calDay||!S.calDay.startsWith(y+"-"+pad(mo+1))){const t=today();S.calDay=t.startsWith(y+"-"+pad(mo+1))?t:ymd(new Date(y,mo,dim))}
+  for(let d=1;d<=dim;d++){
+    const day=new Date(y,mo,d);const k=ymd(day);const n=vids(dayOf(uid,k)).length;
+    if(n){active++;sum+=n}
+    const lvl=n===0?0:n===1?1:n<=3?2:n<=5?3:4;
+    const fut=day>now;
+    cells.push(h("button",{type:"button",disabled:fut,class:(lvl?"l"+lvl:"")+(n>=goal?" goal":"")+(k===today()?" td":"")+(k===S.calDay?" sel":""),
+      "aria-label":dateLabel(k)+": "+n+" video"+(n===1?"":"s"),onclick:()=>{S.calDay=k;renderCal(uid)}},
+      String(d),n?h("small",{text:n+"v"}):null));
+  }
+  cal.replaceChildren(...cells);
+  // selected day list
+  const k=S.calDay;const dv=vids(dayOf(uid,k));
+  $("dayTitle").textContent=dateLabel(k)+" · "+dv.length+" video"+(dv.length===1?"":"s")+" · "+active+" active day"+(active===1?"":"s")+" this month";
+  const ul=$("dayList");
+  ul.replaceChildren(...(dv.length?dv.map(v=>h("li",{},
+    h("span",{class:"subj",text:SUBJECTS.includes(v.s)?v.s:"Other"}),
+    h("span",{class:"t",text:String(v.t||"Untitled video")}),
+    Number(v.m)>0?h("span",{class:"m num",text:Math.round(v.m)+" min"}):null)):
+    [h("li",{class:"empty",style:"display:block",text:"No videos logged on this day."})]));
+  const note=dayOf(uid,k)?.note;
+  if(typeof note==="string"&&note.trim())ul.append(h("li",{style:"background:var(--bg)"},h("span",{class:"t",style:"font-weight:600",text:"📝 "+note})));
+}
+$("calPrev").onclick=()=>{const m=S.calMonth;S.calMonth=new Date(m.getFullYear(),m.getMonth()-1,1);S.calDay=null;renderDetail()};
+$("calNext").onclick=()=>{const m=S.calMonth;const n=new Date(m.getFullYear(),m.getMonth()+1,1);if(n<=new Date()){S.calMonth=n;S.calDay=null;renderDetail()}};
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>{
+  S.rank=b.dataset.rank;document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",String(x===b)));renderSquad();
+}));
+
+/* ---------- render: feed ---------- */
+function renderFeed(){
+  const k=today();const items=[];
+  for(const uid of S.members.keys())for(const v of vids(dayOf(uid,k)))items.push({uid,v});
+  items.sort((a,b)=>(Number(b.v.at)||0)-(Number(a.v.at)||0));
+  $("feedSub").textContent=items.length?items.length+" video"+(items.length===1?"":"s")+" so far":"";
+  const ul=$("feed");
+  ul.replaceChildren(...(items.length?items.slice(0,60).map(({uid,v})=>h("li",{},
+    h("div",{class:"ava",text:memberEmoji(uid)}),
+    h("div",{style:"min-width:0"},
+      h("div",{class:"who",text:memberName(uid)}),
+      h("div",{class:"what",text:String(v.t||"Untitled video")}),
+      h("div",{class:"when"},h("span",{class:"subj",text:SUBJECTS.includes(v.s)?v.s:"Other"})," ",Number(v.at)?new Date(Number(v.at)).toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"}):"",Number(v.m)>0?" · "+Math.round(v.m)+" min":""))
+  )):[h("li",{class:"empty",style:"display:block;grid-column:1/-1",text:"No videos yet today. Who's going first?"})]));
+}
+
+function renderTop(){
+  const b=$("meBadge");const joined=me&&S.members.has(me);
+  b.classList.toggle("hidden",!joined);
+  if(joined){const s=summary(me);b.replaceChildren(h("span",{class:"ava",text:memberEmoji(me)}),h("b",{text:memberName(me)}),h("span",{class:"pill num",text:"🔥 "+s.cur}))}
+  const ban=$("banner");let msg=null;
+  $("signOutBtn").classList.toggle("hidden",!me);
+  if(!configured)msg="Setup needed: paste your Firebase config at the top of index.html (see README).";
+  ban.classList.toggle("hidden",!msg);if(msg)ban.textContent=msg;
+}
+function renderAll(){renderTop();renderMyDay();renderSquad();renderDetail();renderFeed()}
+
+/* ---------- profile modal ---------- */
+let pickEmoji="🌸";
+function openProfile(){
+  const m=S.members.get(me)||{};
+  pickEmoji=EMOJIS.includes(m.emoji)?m.emoji:EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+  $("pNick").value=typeof m.nick==="string"?m.nick:"";
+  $("pGoal").value=me&&S.members.has(me)?memberGoal(me):3;
+  $("modalH").textContent=S.members.has(me)?"Your buddy card":"Join the squad";
+  $("codeField").classList.toggle("hidden",S.members.has(me));$("pCode").value="";
+  drawEmojis();$("modal").classList.remove("hidden");$("pNick").focus();
+}
+function drawEmojis(){
+  $("emojiPick").replaceChildren(...EMOJIS.map(e=>h("button",{type:"button","aria-pressed":String(e===pickEmoji),"aria-label":"Mascot "+e,text:e,onclick:()=>{pickEmoji=e;drawEmojis()}})));
+}
+$("pCancel").onclick=()=>$("modal").classList.add("hidden");
+$("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")});
+document.addEventListener("keydown",e=>{if(e.key==="Escape")$("modal").classList.add("hidden")});
+$("profileForm").addEventListener("submit",e=>{
+  e.preventDefault();if(!db||!me)return;
+  const joined=S.members.has(me);const prev=S.members.get(me)||{};
+  const code=joined?prev.joinCode:$("pCode").value.trim();
+  if(!joined&&!code){$("pCode").focus();toast("Enter the squad code to join.");return}
+  const u=auth.currentUser;
+  const body={emoji:pickEmoji,nick:$("pNick").value.trim().slice(0,30),goal:Math.max(1,Math.min(30,parseInt($("pGoal").value,10)||3)),joinedAt:prev.joinedAt||Date.now(),name:(u&&u.displayName)||prev.name||"",joinCode:code};
+  $("pSave").disabled=true;
+  db.doc("members/"+me).set(body).then(()=>{$("modal").classList.add("hidden");if(!joined)toast("Welcome to the squad! 💖")})
+    .catch(err=>toast(err&&err.code==="permission-denied"?(joined?"Couldn't save your card. Try signing in again.":"That squad code didn't work. Check it with whoever set this up."):"Couldn't save just now. Try again."))
+    .finally(()=>{$("pSave").disabled=false});
+});
+$("joinBtn").onclick=openProfile;
+$("meBadge").onclick=openProfile;
+$("signInBtn").onclick=()=>{
+  if(!auth)return;const p=new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(p).catch(e=>{
+    if(e&&(e.code==="auth/popup-blocked"||e.code==="auth/operation-not-supported-in-this-environment"))return auth.signInWithRedirect(p);
+    if(e&&e.code!=="auth/popup-closed-by-user"&&e.code!=="auth/cancelled-popup-request")toast("Sign-in didn't work: "+(e.message||e.code));
+  });
+};
+$("signOutBtn").onclick=()=>auth&&auth.signOut();
+
+/* ---------- my-day inputs ---------- */
+$("fSubject").replaceChildren(...SUBJECTS.map(s=>h("option",{value:s,text:s})));
+$("prevDay").onclick=()=>{S.date=ymd(addDays(parse(S.date),-1));renderMyDay()};
+$("nextDay").onclick=()=>{if(S.date<today()){S.date=ymd(addDays(parse(S.date),1));renderMyDay()}};
+$("addForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const t=$("fTitle").value.trim();if(!t||!me)return;
+  const m=parseInt($("fMin").value,10);
+  const x=myDay(S.date);const before=x.videos.length;const goal=memberGoal(me);
+  x.videos.push({id:Math.random().toString(36).slice(2,9),s:$("fSubject").value,t:t.slice(0,120),m:m>0?Math.min(600,m):0,at:Date.now()});
+  saveMyDay(S.date,x);
+  $("fTitle").value="";$("fMin").value="";$("fTitle").focus();
+  if(before<goal&&x.videos.length>=goal){const r=$("ring");r.classList.remove("pop");void r.offsetWidth;r.classList.add("pop");const bb=r.getBoundingClientRect();hearts(bb.left+bb.width/2,bb.top+20);toast("Daily goal reached! 💖")}
+});
+let noteTimer=null;
+function saveNote(){clearTimeout(noteTimer);const x=myDay(S.date);const v=$("note").value.slice(0,600);if(v===x.note)return;x.note=v;saveMyDay(S.date,x)}
+$("note").addEventListener("input",()=>{clearTimeout(noteTimer);noteTimer=setTimeout(saveNote,1200)});
+$("note").addEventListener("blur",saveNote);
+$("taskForm").addEventListener("submit",e=>{
+  e.preventDefault();const t=$("taskInput").value.trim();if(!t||!db||!me)return;
+  $("taskInput").value="";
+  write(()=>db.collection("tasks").add({title:t.slice(0,80),by:me,createdAt:Date.now()}));
+});
+
+/* ---------- data wiring (Firebase) ---------- */
+let squadUnsubs=[];
+function stopSquad(){squadUnsubs.forEach(u=>{try{u()}catch(e){}});squadUnsubs=[];logSubs.forEach(u=>{try{u()}catch(e){}});logSubs.clear();S.subscribed=false}
+function ensureLogSub(uid){
+  if(!db||logSubs.has(uid)||!S.subscribed)return;
+  logSubs.set(uid,db.collection("logs/"+uid+"/days").orderBy("date","desc").limit(400).onSnapshot(snap=>{
+    const m=new Map();snap.docs.forEach(d=>m.set(d.id,d.data()));S.logs.set(uid,m);renderAll();
+  },()=>{}));
+}
+function startSquad(){
+  if(S.subscribed)return;S.subscribed=true;
+  const timer=setTimeout(()=>{S.slow=true;renderAll()},10000);
+  squadUnsubs.push(db.collection("members").onSnapshot(snap=>{
+    clearTimeout(timer);S.loaded=true;
+    S.members=new Map(snap.docs.map(d=>[d.id,d.data()||{}]));
+    for(const id of S.members.keys())ensureLogSub(id);
+    renderAll();
+  },()=>{clearTimeout(timer);S.loaded=true;renderAll()}));
+  squadUnsubs.push(db.collection("tasks").orderBy("createdAt").onSnapshot(snap=>{
+    S.tasks=snap.docs.map(d=>({id:d.id,...(d.data()||{})}));renderMyDay();
+  },()=>{}));
+}
+let meUnsub=null;
+renderAll();
+if(configured){
+  firebase.initializeApp(FIREBASE_CONFIG);
+  auth=firebase.auth();db=firebase.firestore();
+  auth.getRedirectResult().catch(()=>{});
+  auth.onAuthStateChanged(u=>{
+    if(meUnsub){meUnsub();meUnsub=null}
+    stopSquad();S.members=new Map();S.logs=new Map();S.tasks=[];S.loaded=false;
+    me=u?u.uid:null;S.view=me;S.authReady=true;
+    if(!u){renderAll();return}
+    // my own member doc decides whether I'm in the squad (rules only open squad data to members)
+    meUnsub=db.doc("members/"+me).onSnapshot(d=>{
+      if(d.exists){S.members.set(me,d.data());startSquad()}
+      else{stopSquad();S.members=new Map();S.loaded=true}
+      renderAll();
+    },()=>{S.loaded=true;renderAll()});
+    renderAll();
+  });
+}else{S.authReady=true;renderAll()}
+setInterval(()=>{const t=today();if(S.lastToday&&S.lastToday!==t&&S.date===S.lastToday)S.date=t;S.lastToday=t;renderAll()},60000);
+S.lastToday=today();
+</script>
+</body>
+</html>

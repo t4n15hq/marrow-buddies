@@ -1,0 +1,62 @@
+rules_version = '2';
+
+// Marrow Buddies security rules.
+// Anyone signed in can create a squad. The squad's document ID is its invite code:
+// squads can be fetched by exact code but never listed, so only people given the code can join.
+// Deploy with:  firebase deploy --only firestore:rules
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isSelf(uid) { return signedIn() && request.auth.uid == uid; }
+    function memberPath(uid) { return /databases/$(database)/documents/members/$(uid); }
+    function isMember() { return signedIn() && exists(memberPath(request.auth.uid)); }
+    function myCode() { return get(memberPath(request.auth.uid)).data.joinCode; }
+
+    // A squad. ID = invite code (random, 8+ chars). No list, no edits.
+    match /squads/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && code.size() >= 8
+        && request.resource.data.keys().hasOnly(['name','by','createdAt'])
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 40;
+    }
+
+    // One card per person; joinCode says which squad they're in. Squad-mates can read each other.
+    match /members/{uid} {
+      allow read: if isSelf(uid) || (isMember() && resource.data.joinCode == myCode());
+      allow create, update: if isSelf(uid)
+        && request.resource.data.joinCode is string
+        && exists(/databases/$(database)/documents/squads/$(request.resource.data.joinCode))
+        && request.resource.data.keys().hasOnly(['emoji','nick','goal','joinedAt','name','joinCode'])
+        && request.resource.data.goal is int
+        && request.resource.data.nick.size() <= 30;
+      allow delete: if isSelf(uid);
+    }
+
+    // Daily logs: you and your squad-mates read, only you write your own days.
+    match /logs/{uid}/days/{day} {
+      allow read: if isSelf(uid)
+        || (isMember() && exists(memberPath(uid)) && get(memberPath(uid)).data.joinCode == myCode());
+      allow write: if isMember() && isSelf(uid)
+        && (request.resource == null || (
+             request.resource.data.date == day
+             && request.resource.data.videos is list
+             && request.resource.data.videos.size() <= 60));
+    }
+
+    // Shared daily tasks, per squad: any member can add; only the person who added one can delete it.
+    match /tasks/{id} {
+      allow read: if isMember() && resource.data.squad == myCode();
+      allow create: if isMember()
+        && request.resource.data.squad == myCode()
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() <= 80;
+      allow delete: if isMember() && resource.data.by == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}

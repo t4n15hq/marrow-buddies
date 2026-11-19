@@ -1,1 +1,4 @@
-firestore.rules
+firestore-debug.log
+firebase-debug.log
+.claude
+.firebaserc

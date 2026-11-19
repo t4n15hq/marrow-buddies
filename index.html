@@ -238,7 +238,10 @@ footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);fon
     <div id="joinBox" class="hidden">
       <p style="margin:0 0 12px;font-weight:700" id="joinText">Sign in to log your Marrow videos and build a streak with your squad.</p>
       <button class="btn" id="signInBtn" type="button">Sign in with Google</button>
-      <button class="btn hidden" id="joinBtn" type="button">Join the squad 🎀</button>
+      <div class="hidden" id="squadBtns"><div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="createBtn" type="button">Create a squad ✨</button>
+        <button class="btn ghost" id="joinBtn" type="button">Join with a code 🎀</button>
+      </div></div>
     </div>
 
     <div id="dayBox">
@@ -282,6 +285,8 @@ footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);fon
     <div class="card-head">
       <h2 id="squadH">Leaderboard</h2>
       <span class="sub" id="squadSub"></span>
+      <span class="spacer"></span>
+      <button class="btn ghost sm hidden" id="inviteBtn" type="button">Invite buddies 💌</button>
     </div>
     <div class="squadstreak" id="squadStreak"></div>
     <div class="tabs" role="tablist" aria-label="Rank by">
@@ -338,11 +343,13 @@ footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);fon
 <div class="modal hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalH">
   <form class="card" id="profileForm" autocomplete="off">
     <h2 id="modalH" style="margin-bottom:14px">Your buddy card</h2>
+    <div class="field hidden" style="margin-bottom:12px" id="nameField"><label for="pSquad">Squad name</label><input type="text" id="pSquad" maxlength="40" placeholder="e.g. Pink Marrow Gang"></div>
     <div class="field" style="margin-bottom:12px"><label>Pick your mascot</label><div class="emojis" id="emojiPick"></div></div>
     <div class="field" style="margin-bottom:12px"><label for="pNick">Nickname (optional)</label><input type="text" id="pNick" maxlength="30" placeholder="Shown instead of your Google name"></div>
-    <div class="field" style="margin-bottom:12px" id="codeField"><label for="pCode">Squad code</label><input type="text" id="pCode" maxlength="40" placeholder="Ask whoever set up the tracker"></div>
+    <div class="field" style="margin-bottom:12px" id="codeField"><label for="pCode">Squad code</label><input type="text" id="pCode" maxlength="200" placeholder="The code or invite link a buddy sent you"></div>
     <div class="field" style="margin-bottom:18px"><label for="pGoal">Daily goal (videos)</label><input type="number" id="pGoal" min="1" max="30" value="3"></div>
     <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn ghost hidden" type="button" id="pLeave" style="margin-right:auto">Leave squad</button>
       <button class="btn ghost" type="button" id="pCancel">Cancel</button>
       <button class="btn" type="submit" id="pSave">Save</button>
     </div>
@@ -383,6 +390,10 @@ function dateLabel(k){
 let db=null,auth=null,me=null,writeBlocked=false;const configured=!String(FIREBASE_CONFIG.apiKey).startsWith("PASTE");
 const S={members:new Map(),logs:new Map(),tasks:[],date:today(),view:null,loaded:false,names:{}};
 const logSubs=new Map();
+/* squads: a squad's Firestore ID is its invite code. Invite links look like ?squad=CODE */
+const cleanCode=v=>{let x=String(v||"");const m=/[?&]squad=([^&#\s]+)/i.exec(x);if(m)x=m[1];return x.trim().toLowerCase().replace(/[^a-z0-9-]/g,"")};
+const newCode=()=>[...crypto.getRandomValues(new Uint8Array(10))].map(b=>"abcdefghjkmnpqrstuvwxyz23456789"[b%31]).join("");
+const invite=cleanCode(new URLSearchParams(location.search).get("squad"));
 
 function h(tag,attrs,...kids){
   const el=document.createElement(tag);
@@ -464,8 +475,8 @@ function renderMyDay(){
   const showJoin=S.authReady&&!joined;
   $("joinBox").classList.toggle("hidden",!showJoin);
   $("dayBox").classList.toggle("hidden",showJoin||!S.authReady);
-  $("signInBtn").classList.toggle("hidden",!!me);$("joinBtn").classList.toggle("hidden",!me);
-  $("joinText").textContent=me?"You're signed in. Join the squad with your squad code to start logging videos.":"Sign in to log your Marrow videos and build a streak with your squad.";
+  $("signInBtn").classList.toggle("hidden",!!me);$("squadBtns").classList.toggle("hidden",!me);
+  $("joinText").textContent=me?"You're signed in! Start a new squad and invite your buddies, or join one with the code a buddy sent you.":"Sign in to log your Marrow videos and build a streak with your squad.";
   $("dateLabel").textContent=dateLabel(S.date);
   $("nextDay").disabled=S.date>=today();
   const ro=!db||!me||writeBlocked||!joined;
@@ -508,7 +519,7 @@ function renderMyDay(){
 /* ---------- render: squad ---------- */
 function renderSquad(){
   const box=$("squad");
-  if(!me||!S.members.has(me)){$("squadSub").textContent="";$("squadStreak").replaceChildren();box.replaceChildren(h("div",{class:"empty",text:me?"Join the squad to see the leaderboard.":"Sign in to see the leaderboard."}));return}
+  if(!me||!S.members.has(me)){$("squadSub").textContent="";$("squadStreak").replaceChildren();box.replaceChildren(h("div",{class:"empty",text:me?"Create or join a squad to see the leaderboard.":"Sign in to see the leaderboard."}));return}
   if(!S.loaded){box.replaceChildren(h("div",{class:"empty",text:S.slow?"Still reaching the squad's data… it may be offline for a moment.":"Loading the squad…"}));return}
   const ids=[...S.members.keys()];
   if(!ids.length){box.replaceChildren(h("div",{class:"empty",text:"Nobody has joined yet. Be the first! 🎀"}));$("squadSub").textContent="";return}
@@ -516,7 +527,7 @@ function renderSquad(){
   const R=RANK[S.rank]||RANK.streak;
   const rows=ids.map(id=>({id,...summary(id)})).sort((a,b)=>b[R.key]-a[R.key]||b.cur-a.cur||b.today-a.today||b.total-a.total);
   const doneToday=rows.filter(r=>r.today>0).length;
-  $("squadSub").textContent=doneToday+" of "+rows.length+" logged today";
+  $("squadSub").textContent=(S.squadName?S.squadName+" · ":"")+doneToday+" of "+rows.length+" logged today";
   const sq=squadStreak();
   $("squadStreak").replaceChildren(
     h("b",{class:"num",text:(sq.n?"🔥":"")+sq.n}),
@@ -632,7 +643,7 @@ function renderFeed(){
 
 function renderTop(){
   const b=$("meBadge");const joined=me&&S.members.has(me);
-  b.classList.toggle("hidden",!joined);
+  b.classList.toggle("hidden",!joined);$("inviteBtn").classList.toggle("hidden",!joined);
   if(joined){const s=summary(me);b.replaceChildren(h("span",{class:"ava",text:memberEmoji(me)}),h("b",{text:memberName(me)}),h("span",{class:"pill num",text:"🔥 "+s.cur}))}
   const ban=$("banner");let msg=null;
   $("signOutBtn").classList.toggle("hidden",!me);
@@ -642,15 +653,20 @@ function renderTop(){
 function renderAll(){renderTop();renderMyDay();renderSquad();renderDetail();renderFeed()}
 
 /* ---------- profile modal ---------- */
-let pickEmoji="🌸";
-function openProfile(){
+let pickEmoji="🌸",pMode="edit";
+function openProfile(mode){
   const m=S.members.get(me)||{};
+  pMode=S.members.has(me)?"edit":mode==="create"?"create":"join";
   pickEmoji=EMOJIS.includes(m.emoji)?m.emoji:EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
   $("pNick").value=typeof m.nick==="string"?m.nick:"";
   $("pGoal").value=me&&S.members.has(me)?memberGoal(me):3;
-  $("modalH").textContent=S.members.has(me)?"Your buddy card":"Join the squad";
-  $("codeField").classList.toggle("hidden",S.members.has(me));$("pCode").value="";
-  drawEmojis();$("modal").classList.remove("hidden");$("pNick").focus();
+  $("modalH").textContent=pMode==="edit"?"Your buddy card":pMode==="create"?"Create a squad":"Join a squad";
+  $("nameField").classList.toggle("hidden",pMode!=="create");$("pSquad").value="";
+  $("codeField").classList.toggle("hidden",pMode!=="join");$("pCode").value=pMode==="join"?invite:"";
+  $("pLeave").classList.toggle("hidden",pMode!=="edit");
+  $("pSave").textContent=pMode==="create"?"Create squad":pMode==="join"?"Join squad":"Save";
+  drawEmojis();$("modal").classList.remove("hidden");
+  (pMode==="create"?$("pSquad"):pMode==="join"&&!invite?$("pCode"):$("pNick")).focus();
 }
 function drawEmojis(){
   $("emojiPick").replaceChildren(...EMOJIS.map(e=>h("button",{type:"button","aria-pressed":String(e===pickEmoji),"aria-label":"Mascot "+e,text:e,onclick:()=>{pickEmoji=e;drawEmojis()}})));
@@ -658,18 +674,36 @@ function drawEmojis(){
 $("pCancel").onclick=()=>$("modal").classList.add("hidden");
 $("modal").addEventListener("click",e=>{if(e.target.id==="modal")$("modal").classList.add("hidden")});
 document.addEventListener("keydown",e=>{if(e.key==="Escape")$("modal").classList.add("hidden")});
-$("profileForm").addEventListener("submit",e=>{
+$("profileForm").addEventListener("submit",async e=>{
   e.preventDefault();if(!db||!me)return;
-  const joined=S.members.has(me);const prev=S.members.get(me)||{};
-  const code=joined?prev.joinCode:$("pCode").value.trim();
-  if(!joined&&!code){$("pCode").focus();toast("Enter the squad code to join.");return}
+  const prev=S.members.get(me)||{};const mode=pMode;
+  let code=prev.joinCode;const sname=$("pSquad").value.trim().slice(0,40);
+  if(mode==="create"&&!sname){$("pSquad").focus();toast("Give your squad a name.");return}
+  if(mode==="join"){code=cleanCode($("pCode").value);if(!code){$("pCode").focus();toast("Enter the squad code to join.");return}}
   const u=auth.currentUser;
-  const body={emoji:pickEmoji,nick:$("pNick").value.trim().slice(0,30),goal:Math.max(1,Math.min(30,parseInt($("pGoal").value,10)||3)),joinedAt:prev.joinedAt||Date.now(),name:(u&&u.displayName)||prev.name||"",joinCode:code};
   $("pSave").disabled=true;
-  db.doc("members/"+me).set(body).then(()=>{$("modal").classList.add("hidden");if(!joined)toast("Welcome to the squad! 💖")})
-    .catch(err=>toast(err&&err.code==="permission-denied"?(joined?"Couldn't save your card. Try signing in again.":"That squad code didn't work. Check it with whoever set this up."):"Couldn't save just now. Try again."))
-    .finally(()=>{$("pSave").disabled=false});
+  try{
+    if(mode==="create"){code=newCode();await db.doc("squads/"+code).set({name:sname,by:me,createdAt:Date.now()})}
+    else if(mode==="join"&&!(await db.doc("squads/"+code).get()).exists){toast("That code didn't match any squad. Check it with your buddy.");return}
+    await db.doc("members/"+me).set({emoji:pickEmoji,nick:$("pNick").value.trim().slice(0,30),goal:Math.max(1,Math.min(30,parseInt($("pGoal").value,10)||3)),joinedAt:prev.joinedAt||Date.now(),name:(u&&u.displayName)||prev.name||"",joinCode:code});
+    $("modal").classList.add("hidden");
+    if(mode==="create")toast("Squad created! Tap “Invite buddies” to send them the link 💌");
+    else if(mode==="join")toast("Welcome to the squad! 💖");
+  }catch(err){toast(err&&err.code==="permission-denied"?"That wasn't allowed. Try signing in again.":"Couldn't save just now. Try again.")}
+  finally{$("pSave").disabled=false}
 });
+$("pLeave").onclick=()=>{
+  if(!confirm("Leave this squad? Your video logs are kept, and you can create or join another squad afterwards."))return;
+  $("modal").classList.add("hidden");write(()=>db.doc("members/"+me).delete());
+};
+$("inviteBtn").onclick=()=>{
+  if(!S.code)return;
+  const url=location.origin+location.pathname+"?squad="+S.code;
+  const text="Join my Marrow Buddies squad"+(S.squadName?" “"+S.squadName+"”":"")+" 💖";
+  if(navigator.share)navigator.share({title:"Marrow Buddies",text,url}).catch(()=>{});
+  else navigator.clipboard.writeText(url).then(()=>toast("Invite link copied! Send it to your buddies 💌"),()=>prompt("Copy this invite link and send it to your buddies:",url));
+};
+$("createBtn").onclick=()=>openProfile("create");
 $("joinBtn").onclick=openProfile;
 $("meBadge").onclick=openProfile;
 $("signInBtn").onclick=()=>{
@@ -702,7 +736,7 @@ $("note").addEventListener("blur",saveNote);
 $("taskForm").addEventListener("submit",e=>{
   e.preventDefault();const t=$("taskInput").value.trim();if(!t||!db||!me)return;
   $("taskInput").value="";
-  write(()=>db.collection("tasks").add({title:t.slice(0,80),by:me,createdAt:Date.now()}));
+  write(()=>db.collection("tasks").add({title:t.slice(0,80),by:me,createdAt:Date.now(),squad:S.code}));
 });
 
 /* ---------- data wiring (Firebase) ---------- */
@@ -717,14 +751,14 @@ function ensureLogSub(uid){
 function startSquad(){
   if(S.subscribed)return;S.subscribed=true;
   const timer=setTimeout(()=>{S.slow=true;renderAll()},10000);
-  squadUnsubs.push(db.collection("members").onSnapshot(snap=>{
+  squadUnsubs.push(db.collection("members").where("joinCode","==",S.code).onSnapshot(snap=>{
     clearTimeout(timer);S.loaded=true;
     S.members=new Map(snap.docs.map(d=>[d.id,d.data()||{}]));
     for(const id of S.members.keys())ensureLogSub(id);
     renderAll();
   },()=>{clearTimeout(timer);S.loaded=true;renderAll()}));
-  squadUnsubs.push(db.collection("tasks").orderBy("createdAt").onSnapshot(snap=>{
-    S.tasks=snap.docs.map(d=>({id:d.id,...(d.data()||{})}));renderMyDay();
+  squadUnsubs.push(db.collection("tasks").where("squad","==",S.code).onSnapshot(snap=>{
+    S.tasks=snap.docs.map(d=>({id:d.id,...(d.data()||{})})).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));renderMyDay();
   },()=>{}));
 }
 let meUnsub=null;
@@ -732,16 +766,29 @@ renderAll();
 if(configured){
   firebase.initializeApp(FIREBASE_CONFIG);
   auth=firebase.auth();db=firebase.firestore();
+  // ponytail: localhost talks to the Firebase emulators, for testing only
+  if(location.hostname==="localhost"){auth.useEmulator("http://localhost:9099");db.useEmulator("localhost",8080)}
   auth.getRedirectResult().catch(()=>{});
   auth.onAuthStateChanged(u=>{
     if(meUnsub){meUnsub();meUnsub=null}
-    stopSquad();S.members=new Map();S.logs=new Map();S.tasks=[];S.loaded=false;
+    stopSquad();S.members=new Map();S.logs=new Map();S.tasks=[];S.loaded=false;S.code=null;S.squadName="";
     me=u?u.uid:null;S.view=me;S.authReady=true;
     if(!u){renderAll();return}
-    // my own member doc decides whether I'm in the squad (rules only open squad data to members)
-    meUnsub=db.doc("members/"+me).onSnapshot(d=>{
-      if(d.exists){S.members.set(me,d.data());startSquad()}
-      else{stopSquad();S.members=new Map();S.loaded=true}
+    // my own member doc says which squad I'm in (rules only open a squad's data to its members)
+    meUnsub=db.doc("members/"+me).onSnapshot({includeMetadataChanges:true},d=>{
+      if(d.exists){
+        const code=d.data().joinCode;
+        if(code!==S.code){
+          stopSquad();S.members=new Map();S.tasks=[];S.loaded=false;S.code=code;S.squadName="";
+          db.doc("squads/"+code).get().then(q=>{if(S.code===code){S.squadName=String((q.data()||{}).name||"");renderAll()}}).catch(()=>{});
+        }
+        S.members.set(me,d.data());
+        // wait for the server to accept my card before reading squad data, or the rules reject the read
+        if(!d.metadata.hasPendingWrites)startSquad();
+      }else{
+        stopSquad();S.members=new Map();S.tasks=[];S.code=null;S.squadName="";S.loaded=true;
+        if(invite&&!S.invited){S.invited=true;openProfile("join")}
+      }
       renderAll();
     },()=>{S.loaded=true;renderAll()});
     renderAll();
